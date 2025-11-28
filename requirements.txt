@@ -1,1 +1,4 @@
-
+requests
+msal
+python-dotenv
+beautifulsoup4
