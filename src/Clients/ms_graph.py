@@ -87,7 +87,7 @@ class MicrosoftGraphClient:
 
         r = requests.get(url, headers=headers, timeout=30)
         if not r.ok:
-            print(f"❌ Error fetching headers: {r.status_code} {r.text}")
+            print(f" Error fetching headers: {r.status_code} {r.text}")
             return []
 
         data = r.json()
@@ -96,21 +96,8 @@ class MicrosoftGraphClient:
 
         important = ['subject', 'x-sender-ip', 'authentication-results',
                      'received-spf', 'dkim-signature']
-        for h in headers_list:
-            name = h.get('name', '')
-            val = h.get('value', '')
-            #if name.lower() in important:
-                #print(f"{name}: {val}")
-        return headers_list
     @staticmethod
-    def printHeaderList(headers: []):
-        if not headers:
-            print("⚠️ No headers found")
-            return
-        for h in headers:
-            name = h.get("name", "")
-            value = h.get("value", "")
-            print(f"{name}: {value}")
+
     @staticmethod
     def parse_spf_dkim(headers: str):
         spf_pattern = r"spf\s*=\s*(pass|fail|softfail|neutral|none)"
@@ -127,6 +114,26 @@ class MicrosoftGraphClient:
                 if dkim_match:
                     dkim_result = dkim_match.group(1).strip()
         return {"spf": spf_result, "dkim": dkim_result}
+    def get_email_headers(self, message_id: str):
+        headers = self.headers()  # get auth headers for request
+        url = f"{GRAPH}/me/messages/{message_id}?$select=internetMessageHeaders"
+
+        r = requests.get(url, headers=headers, timeout=30)
+        if not r.ok:
+            print(f" Error fetching headers: {r.status_code} {r.text}")
+            return []
+
+        data = r.json()
+        headers_list = data.get("internetMessageHeaders", [])  # lowercase key
+        print(f"Retrieved {len(headers_list)} headers.")
+
+        important = ['subject', 'x-sender-ip', 'authentication-results',
+                     'received-spf', 'dkim-signature']
+        for h in headers_list:
+            name = h.get('name', '')
+            val = h.get('value', '')
+
+        return headers_list
 
     def get_latest_message(self):
         headers = self.headers()  # uses the bearer token you already stored
@@ -143,41 +150,3 @@ class MicrosoftGraphClient:
             return None
         data = r.json()
         return (data.get("value") or [None])[0]
-
-    def debug_list_folders(self):
-        url = f"{GRAPH}/me/mailFolders"
-        params = {"$select": "displayName,id,totalItemCount,unreadItemCount"}
-        r = requests.get(url, headers=self.headers(), params=params, timeout=30)
-        r.raise_for_status()
-        for f in r.json().get("value", []):
-            print(
-                f"{f['displayName']:<25}  items={f['totalItemCount']:<5}  unread={f['unreadItemCount']:<5}  id={f['id']}")
-
-    def debug_who_am_i(self):
-        r = requests.get(
-            "https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName",
-            headers=self.headers(), timeout=30)
-        r.raise_for_status()
-        me = r.json()
-        print("SIGNED IN AS:")
-        print(" displayName       :", me.get("displayName"))
-        print(" mail              :", me.get("mail"))
-        print(" userPrincipalName :", me.get("userPrincipalName"))
-
-        # Also dump tenant + preferred username from the token to catch MSA vs AAD
-        import jwt  # pip install pyjwt if needed, but we can also parse manually
-        token = self.headers().get("Authorization","").split()[-1]
-        # decode header only (no verify) to get tid/upn; fallback if lib not installed
-        try:
-            claims = jwt.get_unverified_claims(token)
-            print(" token.tid (tenant):", claims.get("tid"))
-            print(" token.preferred_username:", claims.get("preferred_username"))
-            print(" token.iss           :", claims.get("iss"))
-        except Exception:
-            pass
-    @staticmethod
-    def htmlToPlainText(body: str):
-        if not isinstance(body, str):
-            raise TypeError(f"body must be a string, {type(body)}")
-        soup = BeautifulSoup(body, "html.parser")
-        return soup.get_text(separator=' ', strip=True)
