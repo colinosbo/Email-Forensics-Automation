@@ -1,4 +1,4 @@
-# IT-360-Group-Project-Sect-1
+# Phishing Detection Program
 Group project Video Link - https://www.youtube.com/watch?v=hCE_tduFuO0
 This project's goal is to monitor and detect spam or phishing emails. An automated email forensics tool is used to analyze the email information by looking at the headers, body, and attachments. Using Microsoft Graph API grab message data, parse headers, and evaluate based on security indicators.
 
